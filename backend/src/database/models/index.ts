@@ -1,6 +1,7 @@
 import { sequelize } from "../sequelize.js";
 import { AuditLog, initAuditLogModel } from "./audit-log.model.js";
 import { Company, initCompanyModel } from "./company.model.js";
+import { Contact, initContactModel } from "./contact.model.js";
 import { initUserModel, User } from "./user.model.js";
 
 let initialized = false;
@@ -12,6 +13,7 @@ export function initializeModels() {
 
   initCompanyModel(sequelize);
   initUserModel(sequelize);
+  initContactModel(sequelize);
   initAuditLogModel(sequelize);
 
   Company.hasMany(User, {
@@ -21,6 +23,23 @@ export function initializeModels() {
   User.belongsTo(Company, {
     foreignKey: "companyId",
     as: "company"
+  });
+
+  Company.hasMany(Contact, {
+    foreignKey: "companyId",
+    as: "contacts"
+  });
+  Contact.belongsTo(Company, {
+    foreignKey: "companyId",
+    as: "company"
+  });
+  User.hasMany(Contact, {
+    foreignKey: "consultantId",
+    as: "contacts"
+  });
+  Contact.belongsTo(User, {
+    foreignKey: "consultantId",
+    as: "consultant"
   });
 
   Company.hasMany(AuditLog, {
@@ -45,4 +64,4 @@ export function initializeModels() {
 
 initializeModels();
 
-export { AuditLog, Company, User };
+export { AuditLog, Company, Contact, User };
