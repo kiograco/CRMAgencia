@@ -38,7 +38,7 @@ Variaveis minimas:
 ```env
 NODE_ENV=development
 PORT=3000
-DATABASE_URL=postgres://crm:crm@localhost:5432/crm_dev
+DATABASE_URL=postgres://crm:crm@127.0.0.1:55432/crm_dev
 JWT_ACCESS_SECRET=change-me
 JWT_REFRESH_SECRET=change-me
 COOKIE_SECRET=change-me

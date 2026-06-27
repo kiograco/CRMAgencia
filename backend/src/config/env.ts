@@ -6,7 +6,7 @@ dotenv.config();
 const envSchema = z.object({
   NODE_ENV: z.enum(["development", "test", "production"]).default("development"),
   PORT: z.coerce.number().int().positive().default(3000),
-  DATABASE_URL: z.string().url().default("postgres://crm:crm@localhost:5432/crm_dev"),
+  DATABASE_URL: z.string().url().default("postgres://crm:crm@127.0.0.1:55432/crm_dev"),
   JWT_ACCESS_SECRET: z.string().min(16).default("change-me-access-secret"),
   JWT_REFRESH_SECRET: z.string().min(16).default("change-me-refresh-secret"),
   COOKIE_SECRET: z.string().min(16).default("change-me-cookie-secret"),
@@ -16,7 +16,7 @@ const envSchema = z.object({
     return;
   }
 
-  const unsafeSecrets = [
+  const unsafeSecrets: Array<[string, string]> = [
     ["JWT_ACCESS_SECRET", value.JWT_ACCESS_SECRET],
     ["JWT_REFRESH_SECRET", value.JWT_REFRESH_SECRET],
     ["COOKIE_SECRET", value.COOKIE_SECRET]
