@@ -22,6 +22,19 @@ docker compose up -d postgres
 
 Variaveis esperadas estao em `../.env.example`.
 
+O PostgreSQL do projeto usa a porta `55432` no host para evitar conflito com bancos locais na porta `5432`.
+
+## Usuario Dev
+
+Em `development`, o backend cria automaticamente uma empresa e um usuario admin fake:
+
+```text
+email: admin@demo.local
+senha: Admin123!demo
+```
+
+Essas credenciais sao apenas para desenvolvimento local e podem ser alteradas via `DEV_ADMIN_EMAIL` e `DEV_ADMIN_PASSWORD`.
+
 ## Regras Criticas
 
 - Toda regra de negocio deve usar `companyId` vindo da autenticacao.
