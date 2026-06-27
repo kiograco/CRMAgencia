@@ -2,6 +2,7 @@ import { sequelize } from "../sequelize.js";
 import { AuditLog, initAuditLogModel } from "./audit-log.model.js";
 import { Company, initCompanyModel } from "./company.model.js";
 import { Contact, initContactModel } from "./contact.model.js";
+import { Deal, initDealModel } from "./deal.model.js";
 import { initUserModel, User } from "./user.model.js";
 
 let initialized = false;
@@ -14,6 +15,7 @@ export function initializeModels() {
   initCompanyModel(sequelize);
   initUserModel(sequelize);
   initContactModel(sequelize);
+  initDealModel(sequelize);
   initAuditLogModel(sequelize);
 
   Company.hasMany(User, {
@@ -42,6 +44,31 @@ export function initializeModels() {
     as: "consultant"
   });
 
+  Company.hasMany(Deal, {
+    foreignKey: "companyId",
+    as: "deals"
+  });
+  Deal.belongsTo(Company, {
+    foreignKey: "companyId",
+    as: "company"
+  });
+  Contact.hasMany(Deal, {
+    foreignKey: "contactId",
+    as: "deals"
+  });
+  Deal.belongsTo(Contact, {
+    foreignKey: "contactId",
+    as: "contact"
+  });
+  User.hasMany(Deal, {
+    foreignKey: "ownerId",
+    as: "deals"
+  });
+  Deal.belongsTo(User, {
+    foreignKey: "ownerId",
+    as: "owner"
+  });
+
   Company.hasMany(AuditLog, {
     foreignKey: "companyId",
     as: "auditLogs"
@@ -64,4 +91,4 @@ export function initializeModels() {
 
 initializeModels();
 
-export { AuditLog, Company, Contact, User };
+export { AuditLog, Company, Contact, Deal, User };
