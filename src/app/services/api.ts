@@ -74,6 +74,17 @@ export type ApiDeal = {
   updatedAt: string;
 };
 
+export type DashboardSummary = {
+  totalContacts: number;
+  hotContacts: number;
+  activeDeals: number;
+  wonDeals: number;
+  lostDeals: number;
+  pipelineValue: number;
+  expectedRevenue: number;
+  conversionRate: number;
+};
+
 export type UiContact = {
   id: string | number;
   name: string;
@@ -180,6 +191,9 @@ export const api = {
   },
   logout() {
     return apiRequest<void>("/auth/logout", { method: "POST" });
+  },
+  dashboardSummary() {
+    return apiRequest<{ summary: DashboardSummary }>("/dashboard/summary");
   },
   listContacts(status?: string) {
     const params = status ? `?status=${encodeURIComponent(status)}` : "";

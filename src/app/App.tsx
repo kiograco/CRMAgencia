@@ -14,6 +14,7 @@ import {
 } from "lucide-react";
 import {
   api,
+  formatCurrency,
   stageApiByLabel,
   stageLabels,
   stageLabelByApi,
@@ -357,12 +358,35 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
 
 // ── SCREEN 2 — Dashboard ───────────────────────────────────────────────────
 function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+  const [summary, setSummary] = useState<null | {
+    totalContacts: number;
+    hotContacts: number;
+    activeDeals: number;
+    wonDeals: number;
+    lostDeals: number;
+    pipelineValue: number;
+    expectedRevenue: number;
+    conversionRate: number;
+  }>(null);
+  const [summaryError, setSummaryError] = useState("");
+
+  useEffect(() => {
+    api.dashboardSummary()
+      .then((response) => {
+        setSummary(response.summary);
+        setSummaryError("");
+      })
+      .catch((error) => {
+        setSummaryError(error instanceof Error ? error.message : "Nao foi possivel carregar o resumo");
+      });
+  }, []);
+
   const kpis = [
-    { label: "Oportunidades Ativas", value: "127", delta: "+12%", color: "text-[#2563EB]", bg: "bg-blue-50", icon: Briefcase },
-    { label: "Leads Muito Quentes", value: "23", delta: "+5 hoje", color: "text-green-600", bg: "bg-green-50", icon: Zap },
-    { label: "Oportunidades Perdidas", value: "8", delta: "-3%", color: "text-red-500", bg: "bg-red-50", icon: AlertCircle },
-    { label: "Conversões do Mês", value: "31", delta: "+18%", color: "text-purple-600", bg: "bg-purple-50", icon: Award },
-    { label: "Receita Potencial", value: "R$ 2,4M", delta: "+22%", color: "text-amber-600", bg: "bg-amber-50", icon: DollarSign },
+    { label: "Oportunidades Ativas", value: summary ? String(summary.activeDeals) : "127", delta: "API", color: "text-[#2563EB]", bg: "bg-blue-50", icon: Briefcase },
+    { label: "Leads Quentes", value: summary ? String(summary.hotContacts) : "23", delta: summary ? `${summary.totalContacts} contatos` : "+5 hoje", color: "text-green-600", bg: "bg-green-50", icon: Zap },
+    { label: "Oportunidades Perdidas", value: summary ? String(summary.lostDeals) : "8", delta: "tenant", color: "text-red-500", bg: "bg-red-50", icon: AlertCircle },
+    { label: "Conversao", value: summary ? `${summary.conversionRate.toFixed(1)}%` : "24,4%", delta: `${summary?.wonDeals ?? 31} ganhos`, color: "text-purple-600", bg: "bg-purple-50", icon: Award },
+    { label: "Receita Esperada", value: summary ? formatCurrency(summary.expectedRevenue) : "R$ 2,4M", delta: summary ? formatCurrency(summary.pipelineValue) : "+22%", color: "text-amber-600", bg: "bg-amber-50", icon: DollarSign },
   ];
 
   const priorities = [
@@ -391,6 +415,11 @@ function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
             <span className="text-[#2563EB] font-semibold">5 prioridades</span> para hoje
           </p>
         </div>
+        {summaryError && (
+          <div className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            {summaryError}
+          </div>
+        )}
 
         {/* KPIs */}
         <div className="grid grid-cols-5 gap-4">
