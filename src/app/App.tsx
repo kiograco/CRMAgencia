@@ -559,6 +559,7 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const [apiContacts, setApiContacts] = useState<UiContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [searchTerm, setSearchTerm] = useState("");
   const [showContactForm, setShowContactForm] = useState(false);
   const [editingContactId, setEditingContactId] = useState<string | number | null>(null);
   const [contactForm, setContactForm] = useState({
@@ -572,7 +573,9 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   });
   const filters = ["Todos", "Muito Quente", "Quente", "Morno", "Frio", "Perdido", "Cliente Recorrente", "Aguardando Retorno"];
   const sourceContacts = apiContacts.length > 0 ? apiContacts : contacts;
-  const rows = active === "Todos" ? sourceContacts : sourceContacts.filter(c => c.status === active);
+  const rows = apiContacts.length > 0
+    ? sourceContacts
+    : active === "Todos" ? sourceContacts : sourceContacts.filter(c => c.status === active);
 
   const resetContactForm = () => {
     setEditingContactId(null);
@@ -584,7 +587,10 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
     setApiError("");
 
     try {
-      const response = await api.listContacts();
+      const response = await api.listContacts({
+        status: active !== "Todos" ? statusApiByLabel[active] : undefined,
+        search: searchTerm || undefined,
+      });
       setApiContacts(response.data.map(toUiContact));
     } catch (error) {
       setApiError(error instanceof Error ? error.message : "Nao foi possivel carregar contatos da API");
@@ -655,8 +661,12 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   };
 
   useEffect(() => {
-    void loadContacts();
-  }, []);
+    const timeoutId = window.setTimeout(() => {
+      void loadContacts();
+    }, 250);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [active, searchTerm]);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -666,6 +676,8 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               type="text"
+              value={searchTerm}
+              onChange={(event) => setSearchTerm(event.target.value)}
               placeholder="Buscar por nome, destino, telefone..."
               className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB]"
             />
@@ -1049,6 +1061,8 @@ function KanbanScreen() {
   const [apiContacts, setApiContacts] = useState<ApiContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [stageFilter, setStageFilter] = useState("Todas");
+  const [dealStatusFilter, setDealStatusFilter] = useState("Todos");
   const [showDealForm, setShowDealForm] = useState(false);
   const [dealForm, setDealForm] = useState({
     contactId: "",
@@ -1097,7 +1111,10 @@ function KanbanScreen() {
     try {
       const [contactsResponse, dealsResponse] = await Promise.all([
         api.listContacts(),
-        api.listDeals(),
+        api.listDeals({
+          stage: stageFilter !== "Todas" ? stageApiByLabel[stageFilter] : undefined,
+          status: dealStatusFilter !== "Todos" ? dealStatusFilter : undefined,
+        }),
       ]);
 
       setApiContacts(contactsResponse.data);
@@ -1178,7 +1195,7 @@ function KanbanScreen() {
 
   useEffect(() => {
     void loadKanban();
-  }, []);
+  }, [stageFilter, dealStatusFilter]);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -1192,6 +1209,16 @@ function KanbanScreen() {
             <span>Receita esperada: <strong className="text-[#2563EB]">{apiDeals.length > 0 ? formatCurrency(expectedValue) : "R$ 216.000"}</strong></span>
           </div>
           <div className="flex items-center gap-2">
+            <select value={stageFilter} onChange={(event) => setStageFilter(event.target.value)} className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-[12px] text-gray-600 focus:outline-none focus:border-[#2563EB]">
+              <option>Todas</option>
+              {stageLabels.map((stage) => <option key={stage}>{stage}</option>)}
+            </select>
+            <select value={dealStatusFilter} onChange={(event) => setDealStatusFilter(event.target.value)} className="px-2.5 py-1.5 bg-white border border-gray-200 rounded-lg text-[12px] text-gray-600 focus:outline-none focus:border-[#2563EB]">
+              <option value="Todos">Todos</option>
+              <option value="open">Abertas</option>
+              <option value="won">Ganhas</option>
+              <option value="lost">Perdidas</option>
+            </select>
             <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50">
               <Filter className="w-3.5 h-3.5" /> Filtrar
             </button>

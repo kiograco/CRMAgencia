@@ -195,9 +195,16 @@ export const api = {
   dashboardSummary() {
     return apiRequest<{ summary: DashboardSummary }>("/dashboard/summary");
   },
-  listContacts(status?: string) {
-    const params = status ? `?status=${encodeURIComponent(status)}` : "";
-    return apiRequest<{ data: ApiContact[]; pagination: { total: number } }>(`/contacts${params}`);
+  listContacts(filters: { status?: string; search?: string } = {}) {
+    const params = new URLSearchParams();
+    if (filters.status) {
+      params.set("status", filters.status);
+    }
+    if (filters.search) {
+      params.set("search", filters.search);
+    }
+    const query = params.toString();
+    return apiRequest<{ data: ApiContact[]; pagination: { total: number } }>(`/contacts${query ? `?${query}` : ""}`);
   },
   createContact(input: Record<string, unknown>) {
     return apiRequest<{ contact: ApiContact }>("/contacts", {
@@ -214,8 +221,19 @@ export const api = {
   deleteContact(id: string | number) {
     return apiRequest<void>(`/contacts/${id}`, { method: "DELETE" });
   },
-  listDeals() {
-    return apiRequest<{ data: ApiDeal[]; pagination: { total: number } }>("/deals");
+  listDeals(filters: { stage?: string; status?: string; contactId?: string } = {}) {
+    const params = new URLSearchParams();
+    if (filters.stage) {
+      params.set("stage", filters.stage);
+    }
+    if (filters.status) {
+      params.set("status", filters.status);
+    }
+    if (filters.contactId) {
+      params.set("contactId", filters.contactId);
+    }
+    const query = params.toString();
+    return apiRequest<{ data: ApiDeal[]; pagination: { total: number } }>(`/deals${query ? `?${query}` : ""}`);
   },
   createDeal(input: Record<string, unknown>) {
     return apiRequest<{ deal: ApiDeal }>("/deals", {
