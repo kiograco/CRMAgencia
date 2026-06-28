@@ -88,6 +88,7 @@ export type DashboardSummary = {
 export type UiContact = {
   id: string | number;
   name: string;
+  email: string;
   phone: string;
   status: string;
   score: number;
@@ -156,6 +157,7 @@ export function toUiContact(contact: ApiContact): UiContact {
   return {
     id: contact.id,
     name: contact.name,
+    email: contact.email ?? "-",
     phone: contact.phone ?? "-",
     status: statusLabelByApi[contact.status] ?? contact.status,
     score: contact.score,

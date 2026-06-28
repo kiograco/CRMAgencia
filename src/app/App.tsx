@@ -559,7 +559,7 @@ function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
 }
 
 // ── SCREEN 3 — CRM ─────────────────────────────────────────────────────────
-function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+function CRMScreen({ onNavigate, onSelectContact }: { onNavigate: (s: Screen) => void; onSelectContact: (contact: UiContact) => void }) {
   const [active, setActive] = useState("Todos");
   const [apiContacts, setApiContacts] = useState<UiContact[]>([]);
   const [loading, setLoading] = useState(false);
@@ -641,7 +641,7 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
     setEditingContactId(contact.id);
     setContactForm({
       name: contact.name,
-      email: "",
+      email: contact.email === "-" ? "" : contact.email,
       phone: contact.phone === "-" ? "" : contact.phone,
       status: contact.status,
       score: String(contact.score),
@@ -756,7 +756,10 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
                 <tr
                   key={c.id}
                   className="hover:bg-gray-50/50 cursor-pointer transition-colors"
-                  onClick={() => onNavigate("profile")}
+                  onClick={() => {
+                    onSelectContact(c);
+                    onNavigate("profile");
+                  }}
                 >
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2.5">
@@ -815,39 +818,52 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
 }
 
 // ── SCREEN 4 — Client Profile ──────────────────────────────────────────────
-function ProfileScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
+function ProfileScreen({ onNavigate, contact }: { onNavigate: (s: Screen) => void; contact: UiContact | null }) {
+  const profileContact = contact ?? {
+    id: "mock",
+    name: "Ana Paula Ferreira",
+    email: "anapaula@email.com",
+    phone: "+55 11 99876-5432",
+    status: "Muito Quente",
+    score: 94,
+    interest: "Caribe",
+    nextTrip: "Jan/2025",
+    lastInteraction: "Hoje, 09:15",
+    consultant: "Carlos Silva",
+  };
+
   return (
     <div className="flex-1 overflow-auto">
       <div className="p-6 space-y-4 max-w-[1200px]">
         <div className="flex items-center gap-2 text-[12px] text-gray-400">
           <button onClick={() => onNavigate("crm")} className="hover:text-[#2563EB] transition-colors">Contatos</button>
           <ChevronRight className="w-3 h-3" />
-          <span className="text-gray-700 font-medium">Ana Paula Ferreira</span>
+          <span className="text-gray-700 font-medium">{profileContact.name}</span>
         </div>
 
         {/* Header */}
         <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
           <div className="flex items-start justify-between">
             <div className="flex items-start gap-4">
-              <Avatar name="Ana Paula Ferreira" size="lg" />
+              <Avatar name={profileContact.name} size="lg" />
               <div>
-                <h2 className="text-xl font-bold text-gray-900 mb-1">Ana Paula Ferreira</h2>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">{profileContact.name}</h2>
                 <div className="flex flex-wrap items-center gap-4 text-[12px] text-gray-500 mb-2">
-                  <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> +55 11 99876-5432</span>
+                  <span className="flex items-center gap-1.5"><Phone className="w-3.5 h-3.5" /> {profileContact.phone}</span>
                   <span className="flex items-center gap-1.5"><MessageSquare className="w-3.5 h-3.5 text-green-500" /> WhatsApp ativo</span>
-                  <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> anapaula@email.com</span>
+                  <span className="flex items-center gap-1.5"><Mail className="w-3.5 h-3.5" /> {profileContact.email}</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <StatusBadge status="Muito Quente" />
+                  <StatusBadge status={profileContact.status} />
                   <span className="text-[11px] text-gray-400">Cliente desde Mar/2023 · Consultor: Carlos Silva</span>
                 </div>
               </div>
             </div>
             <div className="text-right flex-shrink-0">
-              <div className="text-3xl font-bold text-green-600 leading-none">94%</div>
+              <div className="text-3xl font-bold text-green-600 leading-none">{profileContact.score}%</div>
               <div className="text-[11px] text-gray-400 mt-1 mb-2">probabilidade de conversão</div>
               <div className="w-32 h-2 bg-gray-100 rounded-full overflow-hidden ml-auto">
-                <div className="h-full bg-green-500 rounded-full" style={{ width: "94%" }} />
+                <div className="h-full bg-green-500 rounded-full" style={{ width: `${profileContact.score}%` }} />
               </div>
             </div>
           </div>
@@ -858,7 +874,7 @@ function ProfileScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
             {/* Summary cards row 1 */}
             <div className="grid grid-cols-3 gap-3">
               {[
-                { label: "Destino", value: "Caribe", sub: "Royal Caribbean", icon: MapPin, color: "text-[#2563EB]" },
+                { label: "Destino", value: profileContact.interest, sub: "Interesse principal", icon: MapPin, color: "text-[#2563EB]" },
                 { label: "Investimento", value: "R$ 24.000", sub: "4 passageiros", icon: DollarSign, color: "text-green-600" },
                 { label: "Data Pretendida", value: "Jan/2025", sub: "Dez preferível", icon: Calendar, color: "text-purple-600" },
               ].map(({ label, value, sub, icon: Icon, color }) => (
@@ -1000,8 +1016,21 @@ function ProfileScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
 }
 
 // ── SCREEN 5 — Timeline ────────────────────────────────────────────────────
-function TimelineScreen() {
-  const events = [
+function TimelineScreen({ contact }: { contact: UiContact | null }) {
+  const timelineContact = contact ?? {
+    id: "mock",
+    name: "Ana Paula Ferreira",
+    email: "anapaula@email.com",
+    phone: "+55 11 99876-5432",
+    status: "Muito Quente",
+    score: 94,
+    interest: "Caribe",
+    nextTrip: "Jan/2025",
+    lastInteraction: "Hoje, 09:15",
+    consultant: "Carlos Silva",
+  };
+
+  const legacyEvents = [
     { date: "23 Dez, 2024", time: "09:15", type: "followup", title: "Follow-up realizado", desc: "Mensagem de acompanhamento enviada. Confirmação de leitura em 4 minutos.", status: "ok" },
     { date: "20 Dez, 2024", time: "14:30", type: "send", title: "Orçamento enviado", desc: "PDF com 3 opções de cabine Royal Caribbean enviado via WhatsApp. Visualizado às 15:10.", status: "ok" },
     { date: "18 Dez, 2024", time: "11:00", type: "request", title: "Solicitação de orçamento", desc: "Ana Paula solicitou orçamento para Caribe em jan/25 — 4 passageiros, cabine de luxo no Harmony of the Seas.", status: "ok" },
@@ -1010,6 +1039,13 @@ function TimelineScreen() {
     { date: "15 Dez, 2024", time: "09:00", type: "ai", title: "IA identificou oportunidade", desc: "Sistema detectou padrão de interesse recorrente com base no histórico — classificação automática: Muito Quente.", status: "ai" },
     { date: "15 Ago, 2024", time: "—", type: "purchase", title: "Última compra realizada", desc: "Cruzeiro Mediterrâneo MSC · R$ 22.000 · Embarque Set/24 · Avaliação pós-viagem: ⭐⭐⭐⭐⭐", status: "success" },
   ];
+
+  const events = contact ? [
+    { date: "API", time: "Agora", type: "contact", title: `Contato selecionado: ${timelineContact.name}`, desc: `Telefone ${timelineContact.phone} e e-mail ${timelineContact.email}.`, status: "ok" },
+    { date: "API", time: "CRM", type: "request", title: "Interesse principal", desc: `${timelineContact.interest} com viagem prevista para ${timelineContact.nextTrip}.`, status: "ok" },
+    { date: "API", time: "Score", type: "ai", title: `Classificacao comercial: ${timelineContact.status}`, desc: `Score atual ${timelineContact.score}%. Consultor: ${timelineContact.consultant}.`, status: "ai" },
+    { date: "API", time: "Historico", type: "followup", title: "Ultima interacao registrada", desc: timelineContact.lastInteraction, status: "ok" },
+  ] : legacyEvents;
 
   const typeIcon: Record<string, React.ReactNode> = {
     send: <FileText className="w-3.5 h-3.5 text-white" />,
@@ -1815,6 +1851,7 @@ const META: Record<Screen, { title: string; subtitle: string }> = {
 export default function App() {
   const [screen, setScreen] = useState<Screen>("login");
   const [user, setUser] = useState<ApiUser | null>(null);
+  const [selectedContact, setSelectedContact] = useState<UiContact | null>(null);
   const [checkingSession, setCheckingSession] = useState(true);
 
   useEffect(() => {
@@ -1861,9 +1898,9 @@ export default function App() {
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
         <TopBar {...META[screen]} user={user} />
         {screen === "dashboard" && <DashboardScreen onNavigate={setScreen} />}
-        {screen === "crm" && <CRMScreen onNavigate={setScreen} />}
-        {screen === "profile" && <ProfileScreen onNavigate={setScreen} />}
-        {screen === "timeline" && <TimelineScreen />}
+        {screen === "crm" && <CRMScreen onNavigate={setScreen} onSelectContact={setSelectedContact} />}
+        {screen === "profile" && <ProfileScreen onNavigate={setScreen} contact={selectedContact} />}
+        {screen === "timeline" && <TimelineScreen contact={selectedContact} />}
         {screen === "kanban" && <KanbanScreen />}
         {screen === "insights" && <InsightsScreen />}
         {screen === "smart-search" && <SmartSearchScreen />}
