@@ -10,7 +10,7 @@ const envSchema = z.object({
   JWT_ACCESS_SECRET: z.string().min(16).default("change-me-access-secret"),
   JWT_REFRESH_SECRET: z.string().min(16).default("change-me-refresh-secret"),
   COOKIE_SECRET: z.string().min(16).default("change-me-cookie-secret"),
-  CORS_ORIGIN: z.string().url().default("http://localhost:5173"),
+  CORS_ORIGIN: z.string().default("http://localhost:5173,http://127.0.0.1:5173"),
   DEV_ADMIN_EMAIL: z.string().email().default("admin@demo.local"),
   DEV_ADMIN_PASSWORD: z.string().min(8).default("Admin123!demo")
 }).superRefine((value, ctx) => {
@@ -36,3 +36,4 @@ const envSchema = z.object({
 });
 
 export const env = envSchema.parse(process.env);
+export const corsOrigins = env.CORS_ORIGIN.split(",").map((origin) => origin.trim()).filter(Boolean);

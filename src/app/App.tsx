@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   BarChart, Bar, LineChart, Line, PieChart, Pie, Cell,
   XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
@@ -12,6 +12,19 @@ import {
   FileText, AlertTriangle, Lock, Wifi, Shield, Sliders,
   BellRing, Cpu, Award, X,
 } from "lucide-react";
+import {
+  api,
+  stageApiByLabel,
+  stageLabels,
+  stageLabelByApi,
+  statusApiByLabel,
+  toUiContact,
+  toUiDealCard,
+  type ApiContact,
+  type ApiDeal,
+  type UiContact,
+  type UiDealCard,
+} from "./services/api";
 
 type Screen =
   | "login" | "dashboard" | "crm" | "profile"
@@ -217,6 +230,25 @@ function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
 
 // ── SCREEN 1 — Login ───────────────────────────────────────────────────────
 function LoginScreen({ onLogin }: { onLogin: () => void }) {
+  const [email, setEmail] = useState("admin@demo.local");
+  const [password, setPassword] = useState("Admin123!demo");
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const submitLogin = async () => {
+    setError("");
+    setLoading(true);
+
+    try {
+      await api.login(email, password);
+      onLogin();
+    } catch (loginError) {
+      setError(loginError instanceof Error ? loginError.message : "Nao foi possivel entrar");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   return (
     <div className="h-full flex">
       <div className="w-[48%] bg-[#0F1629] flex flex-col justify-between p-12">
@@ -270,7 +302,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="email"
-                  defaultValue="carlos@cruisecrm.com"
+                  value={email}
+                  onChange={(event) => setEmail(event.target.value)}
                   className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-colors"
                 />
               </div>
@@ -281,7 +314,13 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
                 <input
                   type="password"
-                  defaultValue="••••••••"
+                  value={password}
+                  onChange={(event) => setPassword(event.target.value)}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter") {
+                      void submitLogin();
+                    }
+                  }}
                   className="w-full pl-10 pr-4 py-2.5 bg-white border border-gray-200 rounded-lg text-sm text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-[#2563EB] transition-colors"
                 />
               </div>
@@ -294,11 +333,17 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
               <button className="text-[#2563EB] hover:underline font-medium">Esqueceu a senha?</button>
             </div>
             <button
-              onClick={onLogin}
-              className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] text-white py-2.5 rounded-lg font-semibold text-sm transition-colors"
+              onClick={() => void submitLogin()}
+              disabled={loading}
+              className="w-full bg-[#2563EB] hover:bg-[#1d4ed8] disabled:opacity-60 text-white py-2.5 rounded-lg font-semibold text-sm transition-colors"
             >
-              Entrar na plataforma
+              {loading ? "Entrando..." : "Entrar na plataforma"}
             </button>
+            {error && (
+              <p className="text-[12px] text-red-600 bg-red-50 border border-red-100 rounded-lg px-3 py-2">
+                {error}
+              </p>
+            )}
           </div>
           <p className="text-center text-xs text-gray-400 mt-5">
             Problemas de acesso?{" "}
@@ -482,8 +527,54 @@ function DashboardScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
 // ── SCREEN 3 — CRM ─────────────────────────────────────────────────────────
 function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const [active, setActive] = useState("Todos");
+  const [apiContacts, setApiContacts] = useState<UiContact[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
   const filters = ["Todos", "Muito Quente", "Quente", "Morno", "Frio", "Perdido", "Cliente Recorrente", "Aguardando Retorno"];
-  const rows = active === "Todos" ? contacts : contacts.filter(c => c.status === active);
+  const sourceContacts = apiContacts.length > 0 ? apiContacts : contacts;
+  const rows = active === "Todos" ? sourceContacts : sourceContacts.filter(c => c.status === active);
+
+  const loadContacts = async () => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const response = await api.listContacts();
+      setApiContacts(response.data.map(toUiContact));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Nao foi possivel carregar contatos da API");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createDemoContact = async () => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const response = await api.createContact({
+        name: `Novo Lead ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+        email: `lead-${Date.now()}@example.test`,
+        phone: "+55 11 90000-0000",
+        status: "hot",
+        score: 72,
+        interest: "Caribe",
+        nextTrip: "Jan/2027",
+      });
+
+      setApiContacts((current) => [toUiContact(response.contact), ...current]);
+      setActive("Todos");
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Nao foi possivel criar contato");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadContacts();
+  }, []);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -500,10 +591,19 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
           <button className="flex items-center gap-2 px-3 py-2 bg-white border border-gray-200 rounded-lg text-[13px] text-gray-600 hover:bg-gray-50">
             <Filter className="w-4 h-4" /> Filtros avançados
           </button>
-          <button className="flex items-center gap-2 px-3 py-2 bg-[#2563EB] rounded-lg text-[13px] text-white hover:bg-[#1d4ed8]">
+          <button
+            onClick={() => void createDemoContact()}
+            disabled={loading}
+            className="flex items-center gap-2 px-3 py-2 bg-[#2563EB] rounded-lg text-[13px] text-white hover:bg-[#1d4ed8] disabled:opacity-60"
+          >
             <Plus className="w-4 h-4" /> Novo Contato
           </button>
         </div>
+        {apiError && (
+          <div className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
+            {apiError}
+          </div>
+        )}
 
         <div className="flex gap-1.5 flex-wrap">
           {filters.map(f => (
@@ -562,7 +662,7 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
         </div>
 
         <div className="flex items-center justify-between text-[12px] text-gray-400">
-          <span>Mostrando <strong className="text-gray-600">{rows.length}</strong> de <strong className="text-gray-600">{contacts.length}</strong> contatos</span>
+          <span>Mostrando <strong className="text-gray-600">{rows.length}</strong> de <strong className="text-gray-600">{sourceContacts.length}</strong> contatos</span>
           <div className="flex items-center gap-1.5">
             {["Anterior", "1", "2", "3", "Próxima"].map((p, i) => (
               <button key={i} className={`px-3 py-1.5 rounded-lg border transition-colors ${p === "1" ? "bg-[#2563EB] text-white border-[#2563EB]" : "bg-white border-gray-200 text-gray-600 hover:bg-gray-50"}`}>{p}</button>
@@ -822,42 +922,135 @@ function TimelineScreen() {
 
 // ── SCREEN 6 — Kanban ──────────────────────────────────────────────────────
 function KanbanScreen() {
+  const [apiDeals, setApiDeals] = useState<ApiDeal[]>([]);
+  const [apiContacts, setApiContacts] = useState<ApiContact[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [apiError, setApiError] = useState("");
   const colAccent: Record<string, string> = {
     "Novo Interesse": "border-t-gray-300",
     "Em Atendimento": "border-t-blue-400",
     "Orçamento Enviado": "border-t-purple-400",
+    "Orcamento Enviado": "border-t-purple-400",
     "Aguardando Cliente": "border-t-amber-400",
     "Negociação": "border-t-orange-400",
+    "Negociacao": "border-t-orange-400",
     "Fechado": "border-t-green-500",
     "Perdido": "border-t-red-400",
   };
 
   const probColor = (p: number) =>
     p === 100 ? "text-green-600" : p === 0 ? "text-gray-400" : p >= 70 ? "text-green-600" : p >= 50 ? "text-amber-600" : "text-orange-500";
+  const contactsById = new Map(apiContacts.map((contact) => [contact.id, contact]));
+  const apiKanbanData = stageLabels.reduce<Record<string, UiDealCard[]>>((acc, label) => {
+    acc[label] = [];
+    return acc;
+  }, {});
+
+  for (const deal of apiDeals) {
+    const label = stageLabelByApi[deal.stage] ?? deal.stage;
+    apiKanbanData[label] ??= [];
+    apiKanbanData[label].push(toUiDealCard(deal, contactsById));
+  }
+
+  const visibleKanbanData = apiDeals.length > 0 ? apiKanbanData : kanbanData;
+  const totalDeals = Object.values(visibleKanbanData).reduce((total, cards) => total + cards.length, 0);
+  const totalValue = apiDeals.reduce((total, deal) => total + Number(deal.value), 0);
+  const expectedValue = apiDeals.reduce((total, deal) => total + Number(deal.value) * (deal.probability / 100), 0);
+
+  const loadKanban = async () => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const [contactsResponse, dealsResponse] = await Promise.all([
+        api.listContacts(),
+        api.listDeals(),
+      ]);
+
+      setApiContacts(contactsResponse.data);
+      setApiDeals(dealsResponse.data);
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Nao foi possivel carregar oportunidades da API");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const createDemoDeal = async () => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      let contact = apiContacts[0];
+
+      if (!contact) {
+        const createdContact = await api.createContact({
+          name: "Lead para Oportunidade",
+          email: `deal-lead-${Date.now()}@example.test`,
+          phone: "+55 11 91111-1111",
+          status: "hot",
+          score: 68,
+          interest: "Caribe",
+          nextTrip: "Fev/2027",
+        });
+        contact = createdContact.contact;
+        setApiContacts([contact]);
+      }
+
+      const createdDeal = await api.createDeal({
+        contactId: contact.id,
+        stage: stageApiByLabel["Novo Interesse"],
+        title: `Oportunidade ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
+        destination: contact.interest ?? "Caribe",
+        value: 22000,
+        probability: 55,
+        nextAction: "Enviar proposta personalizada",
+      });
+
+      setApiDeals((current) => [createdDeal.deal, ...current]);
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Nao foi possivel criar oportunidade");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    void loadKanban();
+  }, []);
 
   return (
     <div className="flex-1 overflow-auto">
       <div className="p-6">
         <div className="flex items-center justify-between mb-5">
           <div className="flex items-center gap-4 text-[12px] text-gray-500">
-            <span>Total: <strong className="text-gray-900">23 oportunidades</strong></span>
+            <span>Total: <strong className="text-gray-900">{totalDeals} oportunidades</strong></span>
             <span className="text-gray-300">·</span>
-            <span>Valor: <strong className="text-green-600">R$ 384.000</strong></span>
+            <span>Valor: <strong className="text-green-600">{apiDeals.length > 0 ? formatCurrency(totalValue) : "R$ 384.000"}</strong></span>
             <span className="text-gray-300">·</span>
-            <span>Receita esperada: <strong className="text-[#2563EB]">R$ 216.000</strong></span>
+            <span>Receita esperada: <strong className="text-[#2563EB]">{apiDeals.length > 0 ? formatCurrency(expectedValue) : "R$ 216.000"}</strong></span>
           </div>
           <div className="flex items-center gap-2">
             <button className="flex items-center gap-1.5 px-3 py-1.5 bg-white border border-gray-200 rounded-lg text-[12px] text-gray-600 hover:bg-gray-50">
               <Filter className="w-3.5 h-3.5" /> Filtrar
             </button>
-            <button className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] rounded-lg text-[12px] text-white hover:bg-[#1d4ed8]">
+            <button
+              onClick={() => void createDemoDeal()}
+              disabled={loading}
+              className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] rounded-lg text-[12px] text-white hover:bg-[#1d4ed8] disabled:opacity-60"
+            >
               <Plus className="w-3.5 h-3.5" /> Nova Oportunidade
             </button>
           </div>
         </div>
+        {apiError && (
+          <div className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
+            {apiError}
+          </div>
+        )}
 
         <div className="flex gap-3 overflow-x-auto pb-4">
-          {Object.entries(kanbanData).map(([col, cards]) => (
+          {Object.entries(visibleKanbanData).map(([col, cards]) => (
             <div key={col} className="w-56 flex-shrink-0">
               <div className={`bg-white rounded-xl border border-gray-100 shadow-sm border-t-2 ${colAccent[col]} overflow-hidden`}>
                 <div className="px-3 py-3 border-b border-gray-50 flex items-center justify-between">
