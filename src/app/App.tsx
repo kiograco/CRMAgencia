@@ -23,6 +23,7 @@ import {
   toUiDealCard,
   type ApiContact,
   type ApiDeal,
+  type ApiUser,
   type UiContact,
   type UiDealCard,
 } from "./services/api";
@@ -140,6 +141,10 @@ function Avatar({ name, size = "sm" }: { name: string; size?: "sm" | "md" | "lg"
   );
 }
 
+function initialsFromName(name: string) {
+  return name.split(" ").slice(0, 2).map(n => n[0]).join("").toUpperCase();
+}
+
 // ── Sidebar ────────────────────────────────────────────────────────────────
 const NAV = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -151,7 +156,7 @@ const NAV = [
   { id: "reports", label: "Relatórios", icon: BarChart2 },
 ] as const;
 
-function Sidebar({ screen, onNavigate }: { screen: Screen; onNavigate: (s: Screen) => void }) {
+function Sidebar({ screen, onNavigate, onLogout }: { screen: Screen; onNavigate: (s: Screen) => void; onLogout: () => void }) {
   return (
     <div className="w-[220px] bg-[#0F1629] flex flex-col h-full flex-shrink-0">
       <div className="px-5 py-5 border-b border-white/10">
@@ -194,7 +199,7 @@ function Sidebar({ screen, onNavigate }: { screen: Screen; onNavigate: (s: Scree
           <span className="font-medium text-[13px]">Configurações</span>
         </button>
         <button
-          onClick={() => onNavigate("login")}
+          onClick={onLogout}
           className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-[13px] text-white/55 hover:text-white hover:bg-white/8 transition-colors"
         >
           <LogOut className="w-4 h-4" />
@@ -205,7 +210,7 @@ function Sidebar({ screen, onNavigate }: { screen: Screen; onNavigate: (s: Scree
   );
 }
 
-function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
+function TopBar({ title, subtitle, user }: { title: string; subtitle: string; user: { name: string; role: string } | null }) {
   return (
     <div className="h-14 bg-white border-b border-gray-100 flex items-center justify-between px-6 flex-shrink-0">
       <div>
@@ -218,9 +223,9 @@ function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
           <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-red-500 rounded-full" />
         </button>
         <div className="flex items-center gap-2 pl-3 border-l border-gray-100">
-          <div className="w-7 h-7 bg-[#2563EB] rounded-full flex items-center justify-center text-white text-[11px] font-bold">CS</div>
+          <div className="w-7 h-7 bg-[#2563EB] rounded-full flex items-center justify-center text-white text-[11px] font-bold">{initialsFromName(user?.name ?? "Carlos Silva")}</div>
           <div>
-            <div className="text-[12px] font-semibold text-gray-900 leading-tight">Carlos Silva</div>
+            <div className="text-[12px] font-semibold text-gray-900 leading-tight">{user?.name ?? "Carlos Silva"}</div>
             <div className="text-[10px] text-gray-400">Consultor Sênior</div>
           </div>
         </div>
@@ -230,7 +235,7 @@ function TopBar({ title, subtitle }: { title: string; subtitle: string }) {
 }
 
 // ── SCREEN 1 — Login ───────────────────────────────────────────────────────
-function LoginScreen({ onLogin }: { onLogin: () => void }) {
+function LoginScreen({ onLogin }: { onLogin: (user: ApiUser) => void }) {
   const [email, setEmail] = useState("admin@demo.local");
   const [password, setPassword] = useState("Admin123!demo");
   const [error, setError] = useState("");
@@ -241,8 +246,8 @@ function LoginScreen({ onLogin }: { onLogin: () => void }) {
     setLoading(true);
 
     try {
-      await api.login(email, password);
-      onLogin();
+      const response = await api.login(email, password);
+      onLogin(response.user);
     } catch (loginError) {
       setError(loginError instanceof Error ? loginError.message : "Nao foi possivel entrar");
     } finally {
@@ -1809,20 +1814,52 @@ const META: Record<Screen, { title: string; subtitle: string }> = {
 // ── App root ───────────────────────────────────────────────────────────────
 export default function App() {
   const [screen, setScreen] = useState<Screen>("login");
+  const [user, setUser] = useState<ApiUser | null>(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  useEffect(() => {
+    api.me()
+      .then((response) => {
+        setUser(response.user);
+        setScreen("dashboard");
+      })
+      .catch(() => {
+        setUser(null);
+        setScreen("login");
+      })
+      .finally(() => setCheckingSession(false));
+  }, []);
+
+  const handleLogout = async () => {
+    try {
+      await api.logout();
+    } finally {
+      setUser(null);
+      setScreen("login");
+    }
+  };
+
+  if (checkingSession) {
+    return (
+      <div className="h-screen flex items-center justify-center bg-[#F8FAFC]" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
+        <div className="text-[13px] text-gray-500">Verificando sessao...</div>
+      </div>
+    );
+  }
 
   if (screen === "login") {
     return (
       <div className="h-screen" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-        <LoginScreen onLogin={() => setScreen("dashboard")} />
+        <LoginScreen onLogin={(loggedUser) => { setUser(loggedUser); setScreen("dashboard"); }} />
       </div>
     );
   }
 
   return (
     <div className="h-screen flex" style={{ fontFamily: "'Inter', system-ui, sans-serif" }}>
-      <Sidebar screen={screen} onNavigate={setScreen} />
+      <Sidebar screen={screen} onNavigate={setScreen} onLogout={() => void handleLogout()} />
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        <TopBar {...META[screen]} />
+        <TopBar {...META[screen]} user={user} />
         {screen === "dashboard" && <DashboardScreen onNavigate={setScreen} />}
         {screen === "crm" && <CRMScreen onNavigate={setScreen} />}
         {screen === "profile" && <ProfileScreen onNavigate={setScreen} />}
