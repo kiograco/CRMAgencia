@@ -559,6 +559,16 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const [apiContacts, setApiContacts] = useState<UiContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [showContactForm, setShowContactForm] = useState(false);
+  const [contactForm, setContactForm] = useState({
+    name: "",
+    email: "",
+    phone: "",
+    status: "Quente",
+    score: "70",
+    interest: "",
+    nextTrip: "",
+  });
   const filters = ["Todos", "Muito Quente", "Quente", "Morno", "Frio", "Perdido", "Cliente Recorrente", "Aguardando Retorno"];
   const sourceContacts = apiContacts.length > 0 ? apiContacts : contacts;
   const rows = active === "Todos" ? sourceContacts : sourceContacts.filter(c => c.status === active);
@@ -577,22 +587,24 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
     }
   };
 
-  const createDemoContact = async () => {
+  const createContactFromForm = async () => {
     setLoading(true);
     setApiError("");
 
     try {
       const response = await api.createContact({
-        name: `Novo Lead ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-        email: `lead-${Date.now()}@example.test`,
-        phone: "+55 11 90000-0000",
-        status: "hot",
-        score: 72,
-        interest: "Caribe",
-        nextTrip: "Jan/2027",
+        name: contactForm.name,
+        email: contactForm.email || null,
+        phone: contactForm.phone || null,
+        status: statusApiByLabel[contactForm.status] ?? "warm",
+        score: Number(contactForm.score),
+        interest: contactForm.interest || null,
+        nextTrip: contactForm.nextTrip || null,
       });
 
       setApiContacts((current) => [toUiContact(response.contact), ...current]);
+      setContactForm({ name: "", email: "", phone: "", status: "Quente", score: "70", interest: "", nextTrip: "" });
+      setShowContactForm(false);
       setActive("Todos");
     } catch (error) {
       setApiError(error instanceof Error ? error.message : "Nao foi possivel criar contato");
@@ -621,7 +633,7 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
             <Filter className="w-4 h-4" /> Filtros avançados
           </button>
           <button
-            onClick={() => void createDemoContact()}
+            onClick={() => setShowContactForm((value) => !value)}
             disabled={loading}
             className="flex items-center gap-2 px-3 py-2 bg-[#2563EB] rounded-lg text-[13px] text-white hover:bg-[#1d4ed8] disabled:opacity-60"
           >
@@ -631,6 +643,25 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
         {apiError && (
           <div className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2">
             {apiError}
+          </div>
+        )}
+        {showContactForm && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+            <div className="grid grid-cols-4 gap-3">
+              <input value={contactForm.name} onChange={(event) => setContactForm({ ...contactForm, name: event.target.value })} placeholder="Nome" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <input value={contactForm.email} onChange={(event) => setContactForm({ ...contactForm, email: event.target.value })} placeholder="E-mail" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <input value={contactForm.phone} onChange={(event) => setContactForm({ ...contactForm, phone: event.target.value })} placeholder="Telefone" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <select value={contactForm.status} onChange={(event) => setContactForm({ ...contactForm, status: event.target.value })} className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] bg-white focus:outline-none focus:border-[#2563EB]">
+                {filters.filter((filter) => filter !== "Todos").map((filter) => <option key={filter}>{filter}</option>)}
+              </select>
+              <input value={contactForm.score} onChange={(event) => setContactForm({ ...contactForm, score: event.target.value })} type="number" min="0" max="100" placeholder="Score" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <input value={contactForm.interest} onChange={(event) => setContactForm({ ...contactForm, interest: event.target.value })} placeholder="Interesse" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <input value={contactForm.nextTrip} onChange={(event) => setContactForm({ ...contactForm, nextTrip: event.target.value })} placeholder="Proxima viagem" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <div className="flex gap-2">
+                <button onClick={() => void createContactFromForm()} disabled={loading || !contactForm.name.trim()} className="flex-1 px-3 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold disabled:opacity-50">Salvar</button>
+                <button onClick={() => setShowContactForm(false)} className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-[13px]">Cancelar</button>
+              </div>
+            </div>
           </div>
         )}
 
@@ -955,6 +986,16 @@ function KanbanScreen() {
   const [apiContacts, setApiContacts] = useState<ApiContact[]>([]);
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
+  const [showDealForm, setShowDealForm] = useState(false);
+  const [dealForm, setDealForm] = useState({
+    contactId: "",
+    title: "",
+    destination: "",
+    value: "22000",
+    probability: "55",
+    stage: "Novo Interesse",
+    nextAction: "",
+  });
   const colAccent: Record<string, string> = {
     "Novo Interesse": "border-t-gray-300",
     "Em Atendimento": "border-t-blue-400",
@@ -1005,38 +1046,30 @@ function KanbanScreen() {
     }
   };
 
-  const createDemoDeal = async () => {
+  const createDealFromForm = async () => {
     setLoading(true);
     setApiError("");
 
     try {
-      let contact = apiContacts[0];
+      const contactId = dealForm.contactId || apiContacts[0]?.id;
 
-      if (!contact) {
-        const createdContact = await api.createContact({
-          name: "Lead para Oportunidade",
-          email: `deal-lead-${Date.now()}@example.test`,
-          phone: "+55 11 91111-1111",
-          status: "hot",
-          score: 68,
-          interest: "Caribe",
-          nextTrip: "Fev/2027",
-        });
-        contact = createdContact.contact;
-        setApiContacts([contact]);
+      if (!contactId) {
+        throw new Error("Cadastre um contato antes de criar uma oportunidade");
       }
 
       const createdDeal = await api.createDeal({
-        contactId: contact.id,
-        stage: stageApiByLabel["Novo Interesse"],
-        title: `Oportunidade ${new Date().toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" })}`,
-        destination: contact.interest ?? "Caribe",
-        value: 22000,
-        probability: 55,
-        nextAction: "Enviar proposta personalizada",
+        contactId,
+        stage: stageApiByLabel[dealForm.stage] ?? "new_interest",
+        title: dealForm.title,
+        destination: dealForm.destination || null,
+        value: Number(dealForm.value),
+        probability: Number(dealForm.probability),
+        nextAction: dealForm.nextAction || null,
       });
 
       setApiDeals((current) => [createdDeal.deal, ...current]);
+      setDealForm({ contactId: "", title: "", destination: "", value: "22000", probability: "55", stage: "Novo Interesse", nextAction: "" });
+      setShowDealForm(false);
     } catch (error) {
       setApiError(error instanceof Error ? error.message : "Nao foi possivel criar oportunidade");
     } finally {
@@ -1064,7 +1097,7 @@ function KanbanScreen() {
               <Filter className="w-3.5 h-3.5" /> Filtrar
             </button>
             <button
-              onClick={() => void createDemoDeal()}
+              onClick={() => setShowDealForm((value) => !value)}
               disabled={loading}
               className="flex items-center gap-1.5 px-3 py-1.5 bg-[#2563EB] rounded-lg text-[12px] text-white hover:bg-[#1d4ed8] disabled:opacity-60"
             >
@@ -1075,6 +1108,28 @@ function KanbanScreen() {
         {apiError && (
           <div className="text-[12px] text-amber-700 bg-amber-50 border border-amber-100 rounded-lg px-3 py-2 mb-4">
             {apiError}
+          </div>
+        )}
+        {showDealForm && (
+          <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4 mb-4">
+            <div className="grid grid-cols-4 gap-3">
+              <select value={dealForm.contactId} onChange={(event) => setDealForm({ ...dealForm, contactId: event.target.value })} className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] bg-white focus:outline-none focus:border-[#2563EB]">
+                <option value="">Contato</option>
+                {apiContacts.map((contact) => <option key={contact.id} value={contact.id}>{contact.name}</option>)}
+              </select>
+              <input value={dealForm.title} onChange={(event) => setDealForm({ ...dealForm, title: event.target.value })} placeholder="Titulo" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <input value={dealForm.destination} onChange={(event) => setDealForm({ ...dealForm, destination: event.target.value })} placeholder="Destino" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <select value={dealForm.stage} onChange={(event) => setDealForm({ ...dealForm, stage: event.target.value })} className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] bg-white focus:outline-none focus:border-[#2563EB]">
+                {stageLabels.map((stage) => <option key={stage}>{stage}</option>)}
+              </select>
+              <input value={dealForm.value} onChange={(event) => setDealForm({ ...dealForm, value: event.target.value })} type="number" min="0" placeholder="Valor" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <input value={dealForm.probability} onChange={(event) => setDealForm({ ...dealForm, probability: event.target.value })} type="number" min="0" max="100" placeholder="Probabilidade" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <input value={dealForm.nextAction} onChange={(event) => setDealForm({ ...dealForm, nextAction: event.target.value })} placeholder="Proxima acao" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
+              <div className="flex gap-2">
+                <button onClick={() => void createDealFromForm()} disabled={loading || !dealForm.title.trim() || (!dealForm.contactId && apiContacts.length === 0)} className="flex-1 px-3 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold disabled:opacity-50">Salvar</button>
+                <button onClick={() => setShowDealForm(false)} className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-[13px]">Cancelar</button>
+              </div>
+            </div>
           </div>
         )}
 
