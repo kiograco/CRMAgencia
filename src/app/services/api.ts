@@ -1,4 +1,4 @@
-const API_BASE_URL = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "http://127.0.0.1:3000/api";
+const API_BASE_URL = (import.meta as { env?: { VITE_API_URL?: string } }).env?.VITE_API_URL ?? "/api";
 
 type ApiOptions = RequestInit & {
   body?: BodyInit | Record<string, unknown> | null;

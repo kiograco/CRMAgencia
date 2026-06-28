@@ -8,4 +8,6 @@
   Run `npm i` to install the dependencies.
 
   Run `npm run dev` to start the development server.
+
+  The frontend uses `/api` by default and the Vite dev server proxies requests to `http://127.0.0.1:3000`. Keep the backend running on port `3000` before logging in.
   # CRMAgencia
