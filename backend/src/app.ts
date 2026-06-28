@@ -9,10 +9,33 @@ import { routes } from "./routes.js";
 
 export const app = express();
 
+function isLocalDevelopmentOrigin(origin: string) {
+  try {
+    const url = new URL(origin);
+    return ["localhost", "127.0.0.1", "::1"].includes(url.hostname);
+  } catch {
+    return false;
+  }
+}
+
+export function isAllowedCorsOrigin(origin: string | undefined) {
+  if (!origin) {
+    return true;
+  }
+
+  if (corsOrigins.includes(origin)) {
+    return true;
+  }
+
+  return env.NODE_ENV !== "production" && isLocalDevelopmentOrigin(origin);
+}
+
 app.use(helmet());
 app.use(
   cors({
-    origin: corsOrigins,
+    origin(origin, callback) {
+      callback(null, isAllowedCorsOrigin(origin));
+    },
     credentials: true
   })
 );
