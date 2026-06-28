@@ -560,6 +560,7 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const [loading, setLoading] = useState(false);
   const [apiError, setApiError] = useState("");
   const [showContactForm, setShowContactForm] = useState(false);
+  const [editingContactId, setEditingContactId] = useState<string | number | null>(null);
   const [contactForm, setContactForm] = useState({
     name: "",
     email: "",
@@ -572,6 +573,11 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
   const filters = ["Todos", "Muito Quente", "Quente", "Morno", "Frio", "Perdido", "Cliente Recorrente", "Aguardando Retorno"];
   const sourceContacts = apiContacts.length > 0 ? apiContacts : contacts;
   const rows = active === "Todos" ? sourceContacts : sourceContacts.filter(c => c.status === active);
+
+  const resetContactForm = () => {
+    setEditingContactId(null);
+    setContactForm({ name: "", email: "", phone: "", status: "Quente", score: "70", interest: "", nextTrip: "" });
+  };
 
   const loadContacts = async () => {
     setLoading(true);
@@ -587,12 +593,12 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
     }
   };
 
-  const createContactFromForm = async () => {
+  const saveContactFromForm = async () => {
     setLoading(true);
     setApiError("");
 
     try {
-      const response = await api.createContact({
+      const payload = {
         name: contactForm.name,
         email: contactForm.email || null,
         phone: contactForm.phone || null,
@@ -600,14 +606,49 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
         score: Number(contactForm.score),
         interest: contactForm.interest || null,
         nextTrip: contactForm.nextTrip || null,
-      });
+      };
+      const response = editingContactId
+        ? await api.updateContact(editingContactId, payload)
+        : await api.createContact(payload);
+      const savedContact = toUiContact(response.contact);
 
-      setApiContacts((current) => [toUiContact(response.contact), ...current]);
-      setContactForm({ name: "", email: "", phone: "", status: "Quente", score: "70", interest: "", nextTrip: "" });
+      setApiContacts((current) => editingContactId
+        ? current.map((contact) => contact.id === editingContactId ? savedContact : contact)
+        : [savedContact, ...current]
+      );
+      resetContactForm();
       setShowContactForm(false);
       setActive("Todos");
     } catch (error) {
       setApiError(error instanceof Error ? error.message : "Nao foi possivel criar contato");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const startEditContact = (contact: UiContact) => {
+    setEditingContactId(contact.id);
+    setContactForm({
+      name: contact.name,
+      email: "",
+      phone: contact.phone === "-" ? "" : contact.phone,
+      status: contact.status,
+      score: String(contact.score),
+      interest: contact.interest === "-" ? "" : contact.interest,
+      nextTrip: contact.nextTrip === "-" ? "" : contact.nextTrip,
+    });
+    setShowContactForm(true);
+  };
+
+  const deleteContact = async (contactId: string | number) => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      await api.deleteContact(contactId);
+      setApiContacts((current) => current.filter((contact) => contact.id !== contactId));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Nao foi possivel excluir contato");
     } finally {
       setLoading(false);
     }
@@ -633,7 +674,10 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
             <Filter className="w-4 h-4" /> Filtros avançados
           </button>
           <button
-            onClick={() => setShowContactForm((value) => !value)}
+            onClick={() => {
+              resetContactForm();
+              setShowContactForm((value) => !value);
+            }}
             disabled={loading}
             className="flex items-center gap-2 px-3 py-2 bg-[#2563EB] rounded-lg text-[13px] text-white hover:bg-[#1d4ed8] disabled:opacity-60"
           >
@@ -658,8 +702,8 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
               <input value={contactForm.interest} onChange={(event) => setContactForm({ ...contactForm, interest: event.target.value })} placeholder="Interesse" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
               <input value={contactForm.nextTrip} onChange={(event) => setContactForm({ ...contactForm, nextTrip: event.target.value })} placeholder="Proxima viagem" className="px-3 py-2 border border-gray-200 rounded-lg text-[13px] focus:outline-none focus:border-[#2563EB]" />
               <div className="flex gap-2">
-                <button onClick={() => void createContactFromForm()} disabled={loading || !contactForm.name.trim()} className="flex-1 px-3 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold disabled:opacity-50">Salvar</button>
-                <button onClick={() => setShowContactForm(false)} className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-[13px]">Cancelar</button>
+                <button onClick={() => void saveContactFromForm()} disabled={loading || !contactForm.name.trim()} className="flex-1 px-3 py-2 bg-[#2563EB] text-white rounded-lg text-[13px] font-semibold disabled:opacity-50">{editingContactId ? "Atualizar" : "Salvar"}</button>
+                <button onClick={() => { resetContactForm(); setShowContactForm(false); }} className="px-3 py-2 bg-white border border-gray-200 text-gray-600 rounded-lg text-[13px]">Cancelar</button>
               </div>
             </div>
           </div>
@@ -711,9 +755,28 @@ function CRMScreen({ onNavigate }: { onNavigate: (s: Screen) => void }) {
                   <td className="px-4 py-3 text-[12px] text-gray-400 whitespace-nowrap">{c.lastInteraction}</td>
                   <td className="px-4 py-3 text-[12px] text-gray-600 whitespace-nowrap">{c.consultant}</td>
                   <td className="px-4 py-3">
-                    <button className="p-1 hover:bg-gray-100 rounded transition-colors">
-                      <MoreHorizontal className="w-4 h-4 text-gray-400" />
-                    </button>
+                    <div className="flex items-center gap-1">
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          startEditContact(c);
+                        }}
+                        disabled={typeof c.id !== "string"}
+                        className="px-2 py-1 text-[11px] text-[#2563EB] hover:bg-blue-50 rounded disabled:text-gray-300 disabled:hover:bg-transparent"
+                      >
+                        Editar
+                      </button>
+                      <button
+                        onClick={(event) => {
+                          event.stopPropagation();
+                          void deleteContact(c.id);
+                        }}
+                        disabled={typeof c.id !== "string" || loading}
+                        className="px-2 py-1 text-[11px] text-red-500 hover:bg-red-50 rounded disabled:text-gray-300 disabled:hover:bg-transparent"
+                      >
+                        Excluir
+                      </button>
+                    </div>
                   </td>
                 </tr>
               ))}
@@ -1077,6 +1140,42 @@ function KanbanScreen() {
     }
   };
 
+  const moveDealForward = async (dealId: string | number, currentStageLabel: string) => {
+    const currentIndex = stageLabels.indexOf(currentStageLabel);
+    const nextStageLabel = stageLabels[Math.min(currentIndex + 1, stageLabels.length - 1)];
+    const nextStage = stageApiByLabel[nextStageLabel];
+
+    if (!nextStage) {
+      return;
+    }
+
+    setLoading(true);
+    setApiError("");
+
+    try {
+      const response = await api.moveDealStage(dealId, nextStage);
+      setApiDeals((current) => current.map((deal) => deal.id === dealId ? response.deal : deal));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Nao foi possivel mover oportunidade");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteDeal = async (dealId: string | number) => {
+    setLoading(true);
+    setApiError("");
+
+    try {
+      await api.deleteDeal(dealId);
+      setApiDeals((current) => current.filter((deal) => deal.id !== dealId));
+    } catch (error) {
+      setApiError(error instanceof Error ? error.message : "Nao foi possivel excluir oportunidade");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
     void loadKanban();
   }, []);
@@ -1169,6 +1268,22 @@ function KanbanScreen() {
                       <div className="flex items-start gap-1 bg-white rounded-md p-1.5 border border-gray-100">
                         <Zap className="w-3 h-3 text-amber-400 flex-shrink-0 mt-0.5" />
                         <span className="text-[10px] text-gray-600 leading-snug">{card.action}</span>
+                      </div>
+                      <div className="flex items-center gap-1 mt-2">
+                        <button
+                          onClick={() => void moveDealForward(card.id, col)}
+                          disabled={typeof card.id !== "string" || loading || col === "Perdido" || col === "Fechado"}
+                          className="flex-1 px-2 py-1 text-[10px] text-[#2563EB] bg-white border border-blue-100 rounded-md hover:bg-blue-50 disabled:text-gray-300 disabled:border-gray-100 disabled:hover:bg-white"
+                        >
+                          Avancar
+                        </button>
+                        <button
+                          onClick={() => void deleteDeal(card.id)}
+                          disabled={typeof card.id !== "string" || loading}
+                          className="px-2 py-1 text-[10px] text-red-500 bg-white border border-red-100 rounded-md hover:bg-red-50 disabled:text-gray-300 disabled:border-gray-100 disabled:hover:bg-white"
+                        >
+                          Excluir
+                        </button>
                       </div>
                     </div>
                   ))}

@@ -205,6 +205,15 @@ export const api = {
       body: input,
     });
   },
+  updateContact(id: string | number, input: Record<string, unknown>) {
+    return apiRequest<{ contact: ApiContact }>(`/contacts/${id}`, {
+      method: "PATCH",
+      body: input,
+    });
+  },
+  deleteContact(id: string | number) {
+    return apiRequest<void>(`/contacts/${id}`, { method: "DELETE" });
+  },
   listDeals() {
     return apiRequest<{ data: ApiDeal[]; pagination: { total: number } }>("/deals");
   },
@@ -213,5 +222,20 @@ export const api = {
       method: "POST",
       body: input,
     });
+  },
+  updateDeal(id: string | number, input: Record<string, unknown>) {
+    return apiRequest<{ deal: ApiDeal }>(`/deals/${id}`, {
+      method: "PATCH",
+      body: input,
+    });
+  },
+  moveDealStage(id: string | number, stage: string) {
+    return apiRequest<{ deal: ApiDeal }>(`/deals/${id}/stage`, {
+      method: "PATCH",
+      body: { stage },
+    });
+  },
+  deleteDeal(id: string | number) {
+    return apiRequest<void>(`/deals/${id}`, { method: "DELETE" });
   },
 };
